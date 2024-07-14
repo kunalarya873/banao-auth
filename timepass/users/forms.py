@@ -1,7 +1,7 @@
 from django import forms
 from django.contrib.auth.models import User
 from django.contrib.auth.forms import UserCreationForm, AuthenticationForm
-from .models import Profile
+from .models import Profile, Tweet
 
 class RegisterForm(UserCreationForm):
     TYPES_OF_USERS = [
@@ -32,7 +32,7 @@ class RegisterForm(UserCreationForm):
         user.email = self.cleaned_data['email']
         user.username = self.cleaned_data['username']
         user.set_password(self.cleaned_data['password1'])
-    
+
         if commit:
             user.save()
 
@@ -65,16 +65,10 @@ class LoginForm(AuthenticationForm):
     password = forms.CharField(max_length=50, required=True, widget=forms.PasswordInput(attrs={'placeholder': 'Password', 'class': 'form-control', 'data-toggle': 'password', 'id': 'password', 'name': 'password'}))
     remember_me = forms.BooleanField(required=False, widget=forms.CheckboxInput(attrs={'class': 'form-check-input'}))
 
-    class Meta:
-        model = User
-        fields = ['username', 'password', 'remember_me']
-
-
 class UpdateUserForm(forms.ModelForm):
     class Meta:
         model = User
         fields = ['username', 'email']
-
 
 class UpdateProfileForm(forms.ModelForm):
     avatar = forms.ImageField(required=False, widget=forms.FileInput(attrs={'class': 'form-control-file'}))
@@ -116,5 +110,50 @@ class UpdateProfileForm(forms.ModelForm):
         if commit:
             profile.save()
         return profile
+class TweetForm(forms.ModelForm):
+    title = forms.CharField(max_length=100, required=True, widget=forms.TextInput(attrs={'class': 'form-control'}))
+    content = forms.CharField(max_length=500, required=True, widget=forms.Textarea(attrs={'class': 'form-control'}))
+    photo = forms.ImageField(required=True, widget=forms.FileInput(attrs={'class': 'form-control-file'}))
+    summary = forms.CharField(max_length=250, required=False, widget=forms.TextInput(attrs={'class': 'form-control'}))
     
+    BLOG_TYPES = [
+        ('Mental Health', 'Mental Health'), 
+        ('Heart Disease', 'Heart Disease'), 
+        ('Covid19', 'Covid19'), 
+        ('Immunization', 'Immunization')
+    ]
+    
+    category = forms.ChoiceField(choices=BLOG_TYPES, widget=forms.Select(attrs={'class': 'form-control'}))
+    
+    is_draft = forms.BooleanField(required=False, initial=False, widget=forms.CheckboxInput(attrs={'class': 'form-check-input'}))
 
+    class Meta:
+        model = Tweet
+        fields = ('title', 'content', 'photo', 'category', 'summary', 'is_draft')
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['category'].choices = self.BLOG_TYPES
+        
+        if self.instance:
+            self.fields['title'].initial = self.instance.title
+            self.fields['content'].initial = self.instance.content
+            self.fields['category'].initial = self.instance.category
+            self.fields['summary'].initial = self.instance.summary
+            self.fields['is_draft'].initial = self.instance.is_draft
+
+    def save(self, commit=True):
+        tweet = super().save(commit=False)
+        tweet.title = self.cleaned_data['title']
+        tweet.content = self.cleaned_data['content']
+        tweet.category = self.cleaned_data['category']
+        tweet.summary = self.cleaned_data['summary']
+        tweet.is_draft = self.cleaned_data['is_draft']
+        
+        if 'photo' in self.cleaned_data:
+            tweet.photo = self.cleaned_data['photo']
+        
+        if commit:
+            tweet.save()
+        
+        return tweet

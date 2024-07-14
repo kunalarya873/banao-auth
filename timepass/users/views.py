@@ -1,15 +1,17 @@
-from django.shortcuts import render, redirect
+from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth import logout
-from .forms import RegisterForm, LoginForm, UpdateUserForm, UpdateProfileForm
-from django.contrib.auth.views import LoginView, PasswordResetView, PasswordChangeView
-from django.contrib.messages.views import SuccessMessageMixin
 from django.urls import reverse_lazy
 from django.views import View
+from django.contrib.auth.views import LoginView, PasswordResetView, PasswordChangeView
+from django.contrib.messages.views import SuccessMessageMixin
+from .forms import *
+from .models import *
 
 def home(request):
-    return render(request, 'users/home.html')
+    tweets = Tweet.objects.all().order_by('created_at')
+    return render(request, 'users/tweet_list.html', {'tweets': tweets})
 
 class RegisterView(View):
     form_class = RegisterForm
@@ -68,15 +70,75 @@ def profile(request):
             user_form.save()
             profile_form.save()
             messages.success(request, 'Your profile is updated successfully')
-            return redirect( 'users-profile')
+            return redirect('profile')
     else:
         user_form = UpdateUserForm(instance=request.user)
         profile_form = UpdateProfileForm(instance=request.user.profile)
 
     return render(request, 'users/profile.html', {'user_form': user_form, 'profile_form': profile_form})
 
+@login_required
 def logout_view(request):
     if request.method == 'POST':
         logout(request)
         return redirect('home')  # Redirect to home page after logout
     return render(request, 'logout.html')  # Render a confirmation page for GET request
+
+@login_required
+def tweet_create(request):
+    if request.method == 'POST':
+        form = TweetForm(request.POST, request.FILES)
+        if form.is_valid():
+            tweet = form.save(commit=False)
+            tweet.user = request.user
+            if 'publish' in request.POST:
+                tweet.is_draft = False
+                messages.success(request, 'Tweet published successfully')
+            else:
+                tweet.is_draft = True
+                messages.success(request, 'Tweet saved as draft')
+            tweet.save()
+            return redirect('home')
+    else:
+        form = TweetForm()
+    
+    return render(request, 'users/tweet_form.html', {'form': form})
+
+@login_required
+def tweet_edit(request, tweet_id):
+    tweet = get_object_or_404(Tweet, pk=tweet_id, user=request.user)
+    
+    if request.method == 'POST':
+        form = TweetForm(request.POST, request.FILES, instance=tweet)
+        if form.is_valid():
+            tweet = form.save(commit=False)
+            if 'publish' in request.POST:
+                tweet.is_draft = False
+                messages.success(request, 'Tweet updated and published successfully')
+            else:
+                tweet.is_draft = True
+                messages.success(request, 'Tweet updated and saved as draft')
+            tweet.save()
+            return redirect('tweet_view', tweet_id=tweet.pk)
+    else:
+        form = TweetForm(instance=tweet)
+    
+    return render(request, 'users/tweet_form.html', {'form': form, 'tweet': tweet})
+
+@login_required
+def tweet_delete(request, tweet_id):
+    tweet = get_object_or_404(Tweet, pk=tweet_id, user=request.user)
+    if request.method == 'POST':
+        tweet.delete()
+        messages.success(request, 'Tweet deleted successfully')
+        return redirect('home')
+    
+    return render(request, 'users/tweet_confirm_delete.html', {'tweet': tweet})
+
+def tweet_view(request, tweet_id):
+    if request.user.is_authenticated:
+        tweet = get_object_or_404(Tweet, pk=tweet_id, user=request.user)
+    else:
+        tweet = get_object_or_404(Tweet, pk=tweet_id)
+    
+    return render(request, 'users/tweet_view.html', {'tweet': tweet})

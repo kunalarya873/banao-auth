@@ -1,0 +1,18 @@
+{% extends "users/base.html" %}
+{% block content %}
+<div class="container mt-4">
+  <h1 class="text-center">Banao</h1>
+  <h2 class="text-center">
+    {% if form.instance.pk %}
+      Edit Tweet
+    {% else %}
+      Create Tweet
+    {% endif %}
+  </h2>
+  <form enctype="multipart/form-data" method="post">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button type="submit" name="publish" class="btn btn-success">Publish</button>
+  </form>
+</div>
+{% endblock %}

@@ -1,0 +1,31 @@
+{% extends "users/base.html" %}
+{% load static %}
+
+{% block content %}
+<div class="container mt-2">
+  <a href="{% url 'tweet_create' %}" class="btn btn-primary mb-2">Create a Tweet</a>
+  <div class="row">
+    {% for tweet in tweets %}
+    <div class="col-md-4 mb-4">
+      <a href="{% url 'tweet_view' tweet.id %}" style="text-decoration: none; color: inherit;">
+        <div class="card" style="width: 100%;">
+          {% if tweet.photo %}
+          <img src="{{ tweet.photo.url }}" class="card-img-top" alt="{{ tweet.title }}">
+          {% else %}
+          <img src="{% static 'default_tweet_image.png' %}" class="card-img-top" alt="Default image">
+          {% endif %}
+          <div class="card-body">
+            <h5 class="card-title">{{ tweet.title }}</h5>
+            <p class="card-text">{{ tweet.summary }}</p>
+            {% if user.is_authenticated and tweet.user == user %}
+            <a href="{% url 'tweet_edit' tweet.id %}" class="btn btn-success">Edit</a>
+            <a href="{% url 'tweet_delete' tweet.id %}" class="btn btn-danger">Delete</a>
+            {% endif %}
+          </div>
+        </div>
+      </a>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}
