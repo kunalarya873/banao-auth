@@ -10,8 +10,14 @@ from .forms import *
 from .models import *
 
 def home(request):
-    tweets = Tweet.objects.all().order_by('created_at')
-    return render(request, 'users/tweet_list.html', {'tweets': tweets})
+    blog_types = Tweet.objects.values_list('category', flat=True).distinct()
+    selected_blog_type = request.GET.get('blog_type')
+    if selected_blog_type:
+        tweets = Tweet.objects.filter(category=selected_blog_type, is_draft=False).order_by('created_at')
+    else:
+        tweets = Tweet.objects.filter(is_draft=False).order_by('created_at')
+    return render(request, 'users/tweet_list.html', {'tweets': tweets, 'blog_types': blog_types, 'selected_blog_type': selected_blog_type})
+
 
 class RegisterView(View):
     form_class = RegisterForm
@@ -70,7 +76,7 @@ def profile(request):
             user_form.save()
             profile_form.save()
             messages.success(request, 'Your profile is updated successfully')
-            return redirect('profile')
+            return redirect('home')
     else:
         user_form = UpdateUserForm(instance=request.user)
         profile_form = UpdateProfileForm(instance=request.user.profile)
@@ -91,14 +97,17 @@ def tweet_create(request):
         if form.is_valid():
             tweet = form.save(commit=False)
             tweet.user = request.user
-            if 'publish' in request.POST:
-                tweet.is_draft = False
-                messages.success(request, 'Tweet published successfully')
-            else:
+            if 'save-draft' in request.POST:
                 tweet.is_draft = True
                 messages.success(request, 'Tweet saved as draft')
+            else:
+                tweet.is_draft = False
+                messages.success(request, 'Tweet published successfully')
             tweet.save()
-            return redirect('home')
+            if tweet.is_draft:
+                return redirect('tweet_draft')
+            else:
+                return redirect('home')
     else:
         form = TweetForm()
     
@@ -135,10 +144,16 @@ def tweet_delete(request, tweet_id):
     
     return render(request, 'users/tweet_confirm_delete.html', {'tweet': tweet})
 
+@login_required
 def tweet_view(request, tweet_id):
-    if request.user.is_authenticated:
-        tweet = get_object_or_404(Tweet, pk=tweet_id, user=request.user)
-    else:
-        tweet = get_object_or_404(Tweet, pk=tweet_id)
-    
+    tweet = get_object_or_404(Tweet, pk=tweet_id)
+    if tweet.is_draft and tweet.user != request.user:
+        messages.error(request, 'You do not have permission to view this draft')
+        return redirect('home')
     return render(request, 'users/tweet_view.html', {'tweet': tweet})
+
+@login_required
+def tweet_draft(request):
+    drafts = Tweet.objects.filter(user=request.user, is_draft=True).order_by('created_at')
+    return render(request, 'users/tweet_draft_list.html', {'drafts': drafts})
+

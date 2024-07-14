@@ -61,5 +61,13 @@ class Tweet(models.Model):
                 new_img_size = (286, 180)
                 img.thumbnail(new_img_size)
                 img.save(self.photo.path)
+    def draft(self, *args, **kwargs):
+        if self.photo:
+            super().save(*args, **kwargs)
+            img = Image.open(self.photo.path)
+            if img.height > 286 or img.width > 180:
+                new_img_size = (286, 180)
+                img.thumbnail(new_img_size)
+                img.save(self.photo.path)
 
         

@@ -3,7 +3,23 @@
 
 {% block content %}
 <div class="container mt-2">
+  {% if user.is_authenticated or tweet.user == user %}
   <a href="{% url 'tweet_create' %}" class="btn btn-primary mb-2">Create a Tweet</a>
+  <a href="{% url 'tweet_draft' %}" class="btn btn-primary mb-2">Drafted Tweets</a>
+{% endif %}
+  <!-- Filter Form -->
+  <form method="GET" class="mb-4">
+    <div class="form-group">
+      <label for="blog_type">Filter by Blog Type:</label>
+      <select name="blog_type" id="blog_type" class="form-control" onchange="this.form.submit()">
+        <option value="">All</option>
+        {% for type in blog_types %}
+        <option value="{{ type }}" {% if type == selected_blog_type %}selected{% endif %}>{{ type }}</option>
+        {% endfor %}
+      </select>
+    </div>
+  </form>
+
   <div class="row">
     {% for tweet in tweets %}
     <div class="col-md-4 mb-4">

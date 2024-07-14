@@ -125,7 +125,7 @@ class TweetForm(forms.ModelForm):
     
     category = forms.ChoiceField(choices=BLOG_TYPES, widget=forms.Select(attrs={'class': 'form-control'}))
     
-    is_draft = forms.BooleanField(required=False, initial=False, widget=forms.CheckboxInput(attrs={'class': 'form-check-input'}))
+    is_draft = forms.BooleanField(required=False, initial=False, widget=forms.CheckboxInput(attrs={'class': 'form-check-input mx-2'}))
 
     class Meta:
         model = Tweet
@@ -153,6 +153,20 @@ class TweetForm(forms.ModelForm):
         if 'photo' in self.cleaned_data:
             tweet.photo = self.cleaned_data['photo']
         
+        if commit:
+            tweet.save()
+        
+        return tweet
+    def draft(self, commit=True):
+        tweet = super().save(commit=False)
+        tweet.title = self.cleaned_data['title']
+        tweet.content = self.cleaned_data['content']
+        tweet.category = self.cleaned_data['category']
+        tweet.summary = self.cleaned_data['summary']
+        tweet.is_draft = self.cleaned_data['is_draft']
+        
+        if 'photo' in self.cleaned_data:
+            tweet.photo = self.cleaned_data['photo']
         if commit:
             tweet.save()
         
