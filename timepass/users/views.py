@@ -4,19 +4,54 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth import logout
 from django.urls import reverse_lazy
 from django.views import View
+from django.utils.decorators import method_decorator
 from django.contrib.auth.views import LoginView, PasswordResetView, PasswordChangeView
 from django.contrib.messages.views import SuccessMessageMixin
 from .forms import *
 from .models import *
+from oauth2_provider.views.generic import ProtectedResourceView
+from google.oauth2.credentials import Credentials
+from google.auth.transport.requests import Request
+from googleapiclient.discovery import build
+import datetime
+import pytz
+from django.http import HttpResponse
+from django.http import JsonResponse
+from django.utils import timezone
+from .utlis import *
 
 def home(request):
+    user = request.user
     blog_types = Tweet.objects.values_list('category', flat=True).distinct()
     selected_blog_type = request.GET.get('blog_type')
+    
     if selected_blog_type:
         tweets = Tweet.objects.filter(category=selected_blog_type, is_draft=False).order_by('created_at')
     else:
         tweets = Tweet.objects.filter(is_draft=False).order_by('created_at')
-    return render(request, 'users/tweet_list.html', {'tweets': tweets, 'blog_types': blog_types, 'selected_blog_type': selected_blog_type})
+    
+    has_upcoming_appointments_flag = False
+    has_scheduled_calls_flag = False
+    
+    if user.is_authenticated:
+        try:
+            profile = user.profile
+            print(f"Profile: {profile}")  # Debugging print
+            # Check if the profile has upcoming appointments or scheduled calls
+            has_upcoming_appointments_flag = has_upcoming_appointments(request.user.profile)
+            has_scheduled_calls_flag = has_scheduled_calls(request.user.profile)
+        except Profile.DoesNotExist:
+            print("Profile does not exist")  # Debugging print
+    
+    context = {
+        'tweets': tweets,
+        'blog_types': blog_types,
+        'selected_blog_type': selected_blog_type,
+        'has_upcoming_appointments': has_upcoming_appointments_flag,
+        'has_scheduled_calls': has_scheduled_calls_flag,
+    }
+    
+    return render(request, 'users/tweet_list.html', context)
 
 
 class RegisterView(View):
@@ -67,28 +102,50 @@ class ChangePasswordView(SuccessMessageMixin, PasswordChangeView):
     success_message = "Successfully Changed Your Password"
     success_url = reverse_lazy('home')
 
+
 @login_required
 def profile(request):
+    user = request.user
+    profile = user.profile
+    doctor_profile_form = None
+
     if request.method == 'POST':
-        user_form = UpdateUserForm(request.POST, instance=request.user)
-        profile_form = UpdateProfileForm(request.POST, request.FILES, instance=request.user.profile)
-        if user_form.is_valid() and profile_form.is_valid():
+        user_form = UserForm(request.POST, instance=user)
+        profile_form = ProfileForm(request.POST, request.FILES, instance=profile)
+
+        if profile.user_type == 'doctor':
+            doctor_profile, created = DoctorProfile.objects.get_or_create(profile=profile)
+            doctor_profile_form = DoctorProfileForm(request.POST, instance=doctor_profile)
+
+        if user_form.is_valid() and profile_form.is_valid() and (not doctor_profile_form or doctor_profile_form.is_valid()):
             user_form.save()
             profile_form.save()
-            messages.success(request, 'Your profile is updated successfully')
-            return redirect('home')
+            if doctor_profile_form:
+                doctor_profile_form.save()
+            return redirect('profile')
     else:
-        user_form = UpdateUserForm(instance=request.user)
-        profile_form = UpdateProfileForm(instance=request.user.profile)
+        user_form = UserForm(instance=user)
+        profile_form = ProfileForm(instance=profile)
 
-    return render(request, 'users/profile.html', {'user_form': user_form, 'profile_form': profile_form})
+        if profile.user_type == 'doctor':
+            doctor_profile, created = DoctorProfile.objects.get_or_create(profile=profile)
+            doctor_profile_form = DoctorProfileForm(instance=doctor_profile)
+
+    context = {
+        'user_form': user_form,
+        'profile_form': profile_form,
+        'doctor_profile_form': doctor_profile_form,
+    }
+
+    return render(request, 'users/profile.html', context)
+
 
 @login_required
 def logout_view(request):
-    if request.method == 'POST':
+    if request.method in ['POST', 'GET']:
         logout(request)
         return redirect('home')  # Redirect to home page after logout
-    return render(request, 'logout.html')  # Render a confirmation page for GET request
+    return render(request, 'users/logout.html')  # Render a confirmation page for GET request
 
 @login_required
 def tweet_create(request):
@@ -104,10 +161,7 @@ def tweet_create(request):
                 tweet.is_draft = False
                 messages.success(request, 'Tweet published successfully')
             tweet.save()
-            if tweet.is_draft:
-                return redirect('tweet_draft')
-            else:
-                return redirect('home')
+            return redirect('tweet_draft') if tweet.is_draft else redirect('home') 
     else:
         form = TweetForm()
     
@@ -157,3 +211,68 @@ def tweet_draft(request):
     drafts = Tweet.objects.filter(user=request.user, is_draft=True).order_by('created_at')
     return render(request, 'users/tweet_draft_list.html', {'drafts': drafts})
 
+
+@login_required
+def book_appointment(request):
+    if request.method == 'POST':
+        form = AppointmentForm(request.POST, user=request.user)
+        if form.is_valid():
+            appointment = form.save(commit=False)
+            appointment.patient = request.user
+            appointment.save()
+            return redirect('confirm_appointment', appointment_id=appointment.id)
+    else:
+        form = AppointmentForm(user=request.user)
+    
+    return render(request, 'users/book_appointment.html', {'form': form})
+
+@login_required
+def get_doctors_by_speciality(request):
+    speciality = request.GET.get('speciality')
+    doctors = User.objects.filter(profile__user_type='doctor', profile__speciality=speciality)
+    doctor_list = [{'id': doctor.id, 'name': doctor.get_full_name()} for doctor in doctors]
+    return JsonResponse(doctor_list, safe=False)
+
+@login_required
+def confirm_appointment(request, appointment_id):
+    appointment = Appointment.objects.get(id=appointment_id)
+    return render(request, 'users/confirm_appointment.html', {'appointment': appointment})
+
+class CalendarView(ProtectedResourceView):
+    @method_decorator(login_required)
+    def get(self, request, *args, **kwargs):
+        return HttpResponse("This is your calendar view")
+    
+@login_required
+def scheduled_calls(request):
+    profile = request.user.profile
+    
+    if profile.user_type == 'doctor':
+        appointments = Appointment.objects.filter(
+            doctor=profile,
+            date__gte=timezone.now().date()
+        )
+    else:
+        appointments = []
+
+    return render(request, 'users/scheduled_calls.html', {'appointments': appointments})
+
+
+@login_required
+def upcoming_appointments(request):
+    if not request.user.is_authenticated:
+        return redirect('login')  # Redirect to login if user is not authenticated
+    
+    profile = request.user.profile
+    appointments = []
+
+    if profile.user_type == 'patient':
+        appointments = Appointment.objects.filter(
+            patient=profile.user,
+            date__gte=timezone.now().date()
+        )
+
+    context = {
+        'appointments': appointments
+    }
+    return render(request, 'users/upcoming_appointments.html', context)

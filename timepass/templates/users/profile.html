@@ -1,15 +1,28 @@
 {% extends "users/base.html" %}
+{% load static %}
 {% block title %}Profile Page{% endblock title %}
 {% block content %}
     <div class="row my-3 p-3">
-        <img class="rounded-circle account-img" src="{{ user.profile.avatar.url }}" style="cursor: pointer;"/>
+        {% if user.profile.avatar %}
+            <img class="rounded-circle account-img" src="{{ user.profile.avatar.url }}" style="width: 150px; height: 150px; cursor: pointer;"/>
+        {% else %}
+            <img class="rounded-circle account-img" src="{% static 'default_tweet_image.png' %}" style="width: 150px; height: 150px; cursor: pointer;"/>
+        {% endif %}
     </div>
-    {% if user_form.errors %}
+    {% if user_form.errors or profile_form.errors or doctor_profile_form.errors %}
         <div class="alert alert-danger alert-dismissible" role="alert">
             <div id="form_errors">
                 {% for key, value in user_form.errors.items %}
-                    <strong>{{ value }}</strong>
+                    <strong>{{ value }}</strong><br>
                 {% endfor %}
+                {% for key, value in profile_form.errors.items %}
+                    <strong>{{ value }}</strong><br>
+                {% endfor %}
+                {% if doctor_profile_form %}
+                    {% for key, value in doctor_profile_form.errors.items %}
+                        <strong>{{ value }}</strong><br>
+                    {% endfor %}
+                {% endif %}
             </div>
             <button type="button" class="close" data-dismiss="alert" aria-label="Close">
                 <span aria-hidden="true">&times;</span>
@@ -42,6 +55,12 @@
                         {{ profile_form.state }}
                         {{ profile_form.pincode }}
                     </div>
+                    {% if user.profile.user_type == 'doctor' %}
+                        <div class="form-group">
+                            <label class="small mb-1" for="{{ doctor_profile_form.speciality.id_for_label }}">Speciality:</label>
+                            {{ doctor_profile_form.speciality }}
+                        </div>
+                    {% endif %}
                     <div class="form-group">
                         <a href="{% url 'password_change' %}">Change Password</a>
                         <hr>

@@ -1,0 +1,40 @@
+{% extends "users/base.html" %}
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-6">
+            <div class="card">
+                <div class="card-header">Book Appointment</div>
+                <div class="card-body">
+                    <form method="POST">
+                        {% csrf_token %}
+                        {{ form.as_p }}
+                        <button type="submit" class="btn btn-primary">Book Appointment</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const specialityField = document.querySelector('select[name="speciality"]');
+        const doctorField = document.querySelector('select[name="doctor"]');
+        
+        specialityField.addEventListener('change', function() {
+            const speciality = this.value;
+            fetch(`/get-doctors-by-speciality/?speciality=${speciality}`)
+                .then(response => response.json())
+                .then(data => {
+                    doctorField.innerHTML = '';
+                    data.forEach(function(doctor) {
+                        const option = document.createElement('option');
+                        option.value = doctor.id;
+                        option.textContent = doctor.name;
+                        doctorField.appendChild(option);
+                    });
+                });
+        });
+    });
+</script>
+{% endblock %}

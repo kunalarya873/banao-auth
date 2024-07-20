@@ -1,5 +1,5 @@
 {% extends "users/base.html" %}
-{% block title %} Register Page {% endblock title%}
+{% block title %} Register Page {% endblock title %}
 {% block content %}
     <div class="form-content my-3 p-3">
         <div class="container">
@@ -81,6 +81,14 @@
                                         </div>
                                     </div>
                                 </div>
+                                <div class="form-row" id="doctor-fields" style="display: none;">
+                                    <div class="col-md-6">
+                                        <div class="form-group">
+                                            <label class="small mb-1">Speciality</label>
+                                            {{ form.speciality }}
+                                        </div>
+                                    </div>
+                                </div>
                                 <div class="form-row">
                                     <div class="col-md-6">
                                         <div class="form-group">
@@ -124,4 +132,29 @@
             </div>
         </div>
     </div>
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            var userTypeField = document.getElementById("id_user_type");
+            var doctorFields = document.getElementById("doctor-fields");
+        
+            function toggleDoctorFields() {
+                if (userTypeField.value === "doctor") {
+                    doctorFields.style.display = "block";
+                } else {
+                    doctorFields.style.display = "none";
+                }
+            }
+        
+            // Check if the script is running and the elements are selected correctly
+            console.log("User Type Field:", userTypeField);
+            console.log("Doctor Fields:", doctorFields);
+        
+            userTypeField.addEventListener("change", toggleDoctorFields);
+        
+            // Call the function on page load
+            toggleDoctorFields();
+        });
+        </script>
 {% endblock content %}
+
+

@@ -1,0 +1,16 @@
+{% extends "users/base.html" %}
+{% block content %}
+<div class="container mt-4">
+    <div class="card">
+        <div class="card-header">Appointment Confirmation</div>
+        <div class="card-body">
+            <h5>Appointment Details</h5>
+            <p>Doctor: {{ appointment.doctor.username }}</p>
+            <p>Speciality: {{ appointment.speciality }}</p>
+            <p>Date: {{ appointment.date }}</p>
+            <p>Time: {{ appointment.time }}</p>
+            <a href="{% url 'home' %}" class="btn btn-primary">Back to Home</a>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,1 +1,4 @@
 venv/
+timepass/credentials.json
+timepass/.env
+banao_auth/

@@ -1,0 +1,22 @@
+{% extends "users/base.html" %}
+{% block content %}
+<div class="container mt-2">
+  <h2>My Upcoming Appointments</h2>
+  
+  {% if appointments %}
+    <div class="list-group">
+      {% for appointment in appointments %}
+        <a href="{% url 'appointment_detail' appointment.id %}" class="list-group-item list-group-item-action">
+          <h5 class="mb-1">{{ appointment.title }}</h5>
+          <p class="mb-1">Date: {{ appointment.date }}</p>
+          <p class="mb-1">Time: {{ appointment.time }}</p>
+          <p class="mb-1">Doctor: {{ appointment.doctor.profile.user.username }}</p>
+          <p class="mb-1">Status: {{ appointment.status }}</p>
+        </a>
+      {% endfor %}
+    </div>
+  {% else %}
+    <p>You have no upcoming appointments at the moment.</p>
+  {% endif %}
+</div>
+{% endblock %}

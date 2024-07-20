@@ -4,9 +4,19 @@
 {% block content %}
 <div class="container mt-2">
   {% if user.is_authenticated or tweet.user == user %}
-  <a href="{% url 'tweet_create' %}" class="btn btn-primary mb-2">Create a Tweet</a>
-  <a href="{% url 'tweet_draft' %}" class="btn btn-primary mb-2">Drafted Tweets</a>
-{% endif %}
+    {% if user.profile.user_type == 'patient' %}
+      <a href="{% url 'book_appointment' %}" class="btn btn-primary mb-2">Book Appointment</a>
+      {% if has_upcoming_appointments %}
+        <a href="{% url 'upcoming_appointments' %}" class="btn btn-primary mb-2">Upcoming Appointments</a>
+      {% endif %}
+    {% elif user.profile.user_type == 'doctor' %}
+      {% if has_scheduled_calls %}
+        <a href="{% url 'scheduled_calls' %}" class="btn btn-primary mb-2">Scheduled Calls</a>
+      {% endif %}
+    {% endif %}
+    <a href="{% url 'tweet_create' %}" class="btn btn-primary mb-2">Create a Tweet</a>
+    <a href="{% url 'tweet_draft' %}" class="btn btn-primary mb-2">Drafted Tweets</a>
+  {% endif %}
   <!-- Filter Form -->
   <form method="GET" class="mb-4">
     <div class="form-group">
